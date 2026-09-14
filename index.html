@@ -2,9 +2,14 @@
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="description" content="WEB MSN — recriação nostálgica e funcional do MSN clássico">
   <meta name="theme-color" content="#0B1220">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
   <title>WEB MSN</title>
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%234A90D9'/><circle cx='16' cy='11' r='5' fill='white'/><path d='M6 28c0-5.5 4.5-9 10-9s10 3.5 10 9' fill='white'/></svg>">
   <link rel="stylesheet" href="style.css">
@@ -81,7 +86,10 @@
           </div>
           <div class="toolbar" role="toolbar">
             <button type="button" title="Adicionar contato" id="btn-add-contact">➕</button>
+            <button type="button" title="Instalar app" id="btn-install" class="hidden">⬇️</button>
+            <button type="button" title="Notificações push" id="btn-notify">🔔</button>
             <button type="button" title="Sons" id="btn-sound">🔊</button>
+            <span class="unread-total hidden" id="unread-total" title="Não lidas">0</span>
             <button type="button" title="Email" disabled>✉️</button>
             <button type="button" title="Arquivos" disabled>📁</button>
             <button type="button" title="Jogos" disabled>🎮</button>
@@ -103,6 +111,7 @@
         <div id="active-chat" class="active-chat hidden">
           <div class="chat-titlebar" id="chat-titlebar">Conversa</div>
           <div class="chat-header">
+            <button type="button" class="btn-back" id="btn-back" title="Voltar" aria-label="Voltar à lista">‹</button>
             <div class="chat-dp" id="chat-avatar" aria-hidden="true">?</div>
             <div class="chat-meta">
               <div class="chat-name" id="chat-name">Contato</div>
@@ -162,5 +171,6 @@
   </div>
   <script src="config.js"></script>
   <script src="app.js"></script>
+  <script src="pwa-push.js"></script>
 </body>
 </html>

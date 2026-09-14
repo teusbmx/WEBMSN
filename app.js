@@ -10,6 +10,9 @@
   window.__WEB_MSN_API__ = fromConfig || (isLocal ? window.location.origin : 'https://webmsn.onrender.com');
 })();
 const API = window.__WEB_MSN_API__;
+window.API = API;
+window.__WEB_MSN_API__ = API;
+
 
 let token = localStorage.getItem('msn_token');
 let user = JSON.parse(localStorage.getItem('msn_user') || 'null');
@@ -23,6 +26,12 @@ let typingTimeout = null;
 let lastNudgeAt = 0;
 const NUDGE_COOLDOWN_MS = 8000; // anti-spam CHAMAR ATENÇÃO
 let soundEnabled = localStorage.getItem('msn_sound') !== '0';
+let unreadByConv = JSON.parse(localStorage.getItem('msn_unread') || '{}');
+let unreadByContact = JSON.parse(localStorage.getItem('msn_unread_contact') || '{}');
+
+let deferredInstallPrompt = null;
+let pushSubscribed = false;
+
 let originalTitle = document.title;
 let titleFlashInterval = null;
 let audioCtx = null;
@@ -219,6 +228,8 @@ $('btn-submit').onclick = async () => {
 
     token = data.token;
     user = data.user;
+    window.token = token;
+    window.user = user;
     localStorage.setItem('msn_token', token);
     localStorage.setItem('msn_user', JSON.stringify(user));
 
@@ -260,6 +271,22 @@ function showApp() {
   $('login-screen').classList.add('hidden');
   $('app-screen').classList.remove('hidden');
   updateMeUI();
+  window.token = token;
+  window.user = user;
+  if (window.WebMsnPWA) WebMsnPWA.updateUnreadBadge();
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const chatId = params.get('chat');
+    if (chatId) {
+      setTimeout(() => {
+        loadContacts().then(() => {
+          window.contacts = contacts;
+          const c = contacts.find((x) => x.id === chatId);
+          if (c) openChat(c);
+        });
+      }, 400);
+    }
+  } catch (_) {}
 }
 function updateMeUI() {
   $('me-name').textContent = user.display_name || 'Eu';
@@ -285,6 +312,12 @@ function connectSocket() {
     console.log('Socket connected');
     const bar = $('conn-bar');
     if (bar) bar.classList.add('hidden');
+    window.token = token;
+    window.contacts = contacts;
+    window.openChat = openChat;
+    window.loadContacts = loadContacts;
+    window.showToast = showToast;
+    if (window.WebMsnPWA) WebMsnPWA.ensurePushSubscription(false);
   });
   socket.on('disconnect', () => {
     console.log('Socket disconnected');
@@ -318,6 +351,7 @@ function connectSocket() {
     }
 
     if (!isMe) {
+      bumpUnreadForMessage(msg);
       soundMessage();
       const name = msg.sender_name || 'Alguém';
       showToast(name, msg.type === 'nudge' ? '⚡ chamou sua atenção!' : msg.content, () => {
@@ -364,20 +398,58 @@ function connectSocket() {
   socket.on('contact:request', (data) => {
     soundMessage();
     const name = (data && data.display_name) || 'Alguém';
-    showToast('Solicitação de amizade', name + ' quer adicionar você');
+    const fromId = data && data.from;
+    // Mostra na lista imediatamente (não depende só do GET)
+    if (fromId) {
+      const already = contacts.find(
+        c => c.id === fromId && (c.relation_status === 'incoming' || c.status === 'incoming')
+      );
+      if (!already) {
+        contacts.unshift({
+          id: fromId,
+          display_name: name,
+          email: data.email || '',
+          relation_status: 'incoming',
+          contact_relation_id: data.relation_id || ('temp-' + fromId),
+          status: 'offline',
+          personal_message: 'Quer ser seu contato'
+        });
+        window.contacts = contacts;
+        renderContacts();
+      }
+    }
+    showToast('Solicitação de amizade', name + ' quer adicionar você', () => {
+      // Foca a lista / scroll para solicitações
+      const list = $('contact-list');
+      if (list) list.scrollTop = 0;
+    });
+    // Confirma com o servidor
     loadContacts();
   });
-  socket.on('contact:updated', () => loadContacts());
+  socket.on('contact:updated', () => {
+    loadContacts();
+  });
 }
+
+// Atualiza lista periodicamente (convites offline / multi-aba)
+setInterval(() => {
+  if (token && !$('app-screen').classList.contains('hidden')) {
+    loadContacts();
+  }
+}, 15000);
+
 
 // ========== CONTACTS ==========
 async function loadContacts() {
   try {
+    if (!token) return;
     const res = await fetch(`${API}/api/contacts`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     if (res.status === 401) return logout();
-    contacts = await res.json();
+    const data = await res.json();
+    contacts = Array.isArray(data) ? data : [];
+    window.contacts = contacts;
     renderContacts();
   } catch (e) { console.error(e); }
 }
@@ -412,6 +484,60 @@ function formatPsm(text, isPending, status) {
   return note + escapeHtml(text);
 }
 
+
+function saveUnreadAll() {
+  try {
+    localStorage.setItem('msn_unread', JSON.stringify(unreadByConv));
+    localStorage.setItem('msn_unread_contact', JSON.stringify(unreadByContact));
+  } catch (_) {}
+  updateTotalUnreadBadge();
+  if (window.WebMsnPWA && WebMsnPWA.updateUnreadBadge) WebMsnPWA.updateUnreadBadge();
+}
+
+function updateTotalUnreadBadge() {
+  const el = $('unread-total');
+  const n = Object.values(unreadByContact).reduce((a, b) => a + (Number(b) || 0), 0);
+  if (el) {
+    if (n > 0) {
+      el.textContent = n > 99 ? '99+' : String(n);
+      el.classList.remove('hidden');
+    } else el.classList.add('hidden');
+  }
+  try {
+    document.title = n > 0 ? '(' + n + ') WEB MSN' : 'WEB MSN';
+  } catch (_) {}
+}
+
+function bumpUnreadForMessage(msg) {
+  if (!msg || msg.sender_id === (user && user.id)) return;
+  // Se a conversa está aberta e visível, não conta
+  if (currentConvId === msg.conversation_id && !document.hidden) return;
+  const convId = msg.conversation_id;
+  const contactId = msg.sender_id;
+  if (convId) unreadByConv[convId] = (unreadByConv[convId] || 0) + 1;
+  if (contactId) unreadByContact[contactId] = (unreadByContact[contactId] || 0) + 1;
+  saveUnreadAll();
+  renderContacts(); // badge ao lado do nome
+}
+
+function clearUnreadForContact(contactId, conversationId) {
+  if (contactId && unreadByContact[contactId]) {
+    delete unreadByContact[contactId];
+  }
+  if (conversationId && unreadByConv[conversationId]) {
+    delete unreadByConv[conversationId];
+  }
+  saveUnreadAll();
+  if (window.WebMsnPWA) {
+    try { WebMsnPWA.clearUnread(conversationId); } catch (_) {}
+  }
+}
+
+function unreadCountForContact(contactId) {
+  return Number(unreadByContact[contactId] || 0);
+}
+
+
 function renderContacts() {
   const q = $('search').value.trim().toLowerCase();
   let list = contacts;
@@ -423,13 +549,14 @@ function renderContacts() {
     );
   }
 
+  const rel = (c) => (c.relation_status || c.status || '').toLowerCase();
   const groups = {
-    incoming: list.filter(c => c.relation_status === 'incoming'),
-    pending: list.filter(c => c.relation_status === 'pending'),
-    online: list.filter(c => c.status === 'online' && c.relation_status !== 'pending' && c.relation_status !== 'incoming'),
-    busy: list.filter(c => c.status === 'busy' && c.relation_status !== 'pending' && c.relation_status !== 'incoming'),
-    away: list.filter(c => c.status === 'away' && c.relation_status !== 'pending' && c.relation_status !== 'incoming'),
-    offline: list.filter(c => (c.status === 'offline' || c.status === 'invisible') && c.relation_status !== 'pending' && c.relation_status !== 'incoming')
+    incoming: list.filter(c => rel(c) === 'incoming'),
+    pending: list.filter(c => rel(c) === 'pending'),
+    online: list.filter(c => c.status === 'online' && rel(c) !== 'pending' && rel(c) !== 'incoming'),
+    busy: list.filter(c => c.status === 'busy' && rel(c) !== 'pending' && rel(c) !== 'incoming'),
+    away: list.filter(c => c.status === 'away' && rel(c) !== 'pending' && rel(c) !== 'incoming'),
+    offline: list.filter(c => (c.status === 'offline' || c.status === 'invisible') && rel(c) !== 'pending' && rel(c) !== 'incoming')
   };
 
   const container = $('contact-list');
@@ -444,7 +571,9 @@ function renderContacts() {
 
     items.forEach(c => {
       const el = document.createElement('div');
-      el.className = 'contact-item' + (currentContact && currentContact.id === c.id ? ' active' : '');
+      el.className = 'contact-item'
+        + (currentContact && currentContact.id === c.id ? ' active' : '')
+        + ((!isIncoming && !isOutgoing && unreadCountForContact(c.id) > 0) ? ' has-unread' : '');
       const st = c.status === 'invisible' ? 'offline' : (c.status || 'offline');
       let actions = '';
       if (isIncoming) {
@@ -461,7 +590,7 @@ function renderContacts() {
       el.innerHTML = `
         <div class="contact-icon ${st}">${buddyIcon(st)}</div>
         <div class="contact-text">
-          <div class="contact-name">${escapeHtml(c.display_name)}</div>
+          <div class="contact-name">${escapeHtml(c.display_name)}${(!isIncoming && !isOutgoing && unreadCountForContact(c.id) > 0) ? `<span class="unread-pill" title="Mensagens não lidas">${unreadCountForContact(c.id) > 99 ? '99+' : unreadCountForContact(c.id)}</span>` : ''}</div>
           <div class="contact-psm">${psmText}</div>
         </div>
         ${actions}
@@ -500,25 +629,64 @@ function renderContacts() {
 $('search').oninput = () => renderContacts();
 
 async function respondContact(relationId, status) {
-  await fetch(`${API}/api/contacts/${relationId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ status })
-  });
-  loadContacts();
-  if (status === 'accepted') showToast('Contato', 'Solicitação aceita');
-  if (status === 'rejected') showToast('Contato', 'Solicitação recusada');
+  try {
+    if (String(relationId).startsWith('temp-')) {
+      showToast('Aguarde', 'Sincronizando convite…');
+      await loadContacts();
+      const fromId = String(relationId).replace(/^temp-/, '');
+      const real = contacts.find(c => c.id === fromId && (c.relation_status === 'incoming' || c.status === 'incoming'));
+      if (!real || !real.contact_relation_id) {
+        showToast('Erro', 'Convite não encontrado no servidor. Peça para reenviar.');
+        return;
+      }
+      relationId = real.contact_relation_id;
+    }
+    const res = await fetch(`${API}/api/contacts/${relationId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showToast('Erro', data.error || 'Não foi possível responder ao convite');
+      return;
+    }
+    if (status === 'accepted') showToast('Contato', 'Solicitação aceita');
+    if (status === 'rejected') showToast('Contato', 'Solicitação recusada');
+    loadContacts();
+  } catch (e) {
+    showToast('Erro', 'Falha de conexão');
+  }
 }
 
 // ========== CHAT ==========
+
+function closeChat() {
+  currentContact = null;
+  currentConvId = null;
+  $('active-chat').classList.add('hidden');
+  $('empty-chat').classList.remove('hidden');
+  $('app-layout').classList.remove('chat-open');
+  renderContacts();
+  stopFlashTitle();
+}
+
 async function openChat(contact) {
   currentContact = contact;
+  if (contact && contact.id) {
+    clearUnreadForContact(contact.id, null);
+  }
   renderContacts();
   stopFlashTitle();
 
   $('empty-chat').classList.add('hidden');
   $('active-chat').classList.remove('hidden');
   $('app-layout').classList.add('chat-open');
+  try {
+    if (window.matchMedia('(max-width: 768px)').matches) {
+      history.pushState({ chat: true }, '');
+    }
+  } catch (_) {}
 
   $('chat-name').textContent = contact.display_name;
   $('chat-titlebar').textContent = contact.display_name;
@@ -537,6 +705,8 @@ async function openChat(contact) {
   messages[currentConvId] = await msgRes.json();
   renderMessages();
   $('msg-input').focus();
+  clearUnreadForContact(contact.id, currentConvId);
+  renderContacts();
 }
 
 function renderMessages() {
@@ -662,15 +832,28 @@ $('btn-cancel-psm').onclick = closeModals;
 $('btn-add-contact').onclick = () => openModal('modal-add');
 $('btn-confirm-add').onclick = async () => {
   const email = $('add-email').value.trim();
-  if (!email) return;
-  const res = await fetch(`${API}/api/contacts`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ email })
-  });
-  const data = await res.json();
-  if (!res.ok) alert(data.error || 'Erro');
-  else { closeModals(); loadContacts(); }
+  if (!email) {
+    showToast('Contato', 'Digite o email da pessoa');
+    return;
+  }
+  try {
+    const res = await fetch(`${API}/api/contacts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showToast('Convite', data.error || 'Não foi possível enviar');
+      return;
+    }
+    closeModals();
+    $('add-email').value = '';
+    showToast('Convite enviado', data.message || 'A pessoa verá em Solicitações');
+    loadContacts();
+  } catch (e) {
+    showToast('Erro', 'Falha de conexão ao enviar convite');
+  }
 };
 $('btn-cancel-add').onclick = closeModals;
 
@@ -723,6 +906,14 @@ $('modal-overlay').addEventListener('click', (e) => {
 });
 
 $('btn-logout').onclick = logout;
+if ($('btn-back')) $('btn-back').onclick = closeChat;
+// Botão voltar do celular
+window.addEventListener('popstate', () => {
+  if ($('app-layout') && $('app-layout').classList.contains('chat-open')) {
+    closeChat();
+  }
+});
+
 (function initSoundBtn() {
   const btn = $('btn-sound');
   if (!btn) return;
