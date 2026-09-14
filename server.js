@@ -15,7 +15,7 @@ const fs = require('fs');
 const path = require('path');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'msn-classic-secret-change-me-in-production-2026';
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 const DB_FILE = path.join(__dirname, 'db.json');
 
 // ============== SIMPLE JSON DATABASE ==============
@@ -58,7 +58,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-// Versão web do MSN Classic (abre em http://localhost:3000)
+// Versão web do MSN Classic (abre em http://localhost:10000)
 app.use(express.static(path.join(__dirname, '../web')));
 
 const server = http.createServer(app);
