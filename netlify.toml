@@ -1,7 +1,7 @@
-# Frontend only — backend fica no Render
+# Estrutura plana (index.html, app.js, style.css na raiz do repo)
 [build]
-  publish = "web"
-  command = "echo 'Static WEB MSN — no build step'"
+  publish = "."
+  command = "echo 'WEB MSN static'"
 
 [[headers]]
   for = "/*"
@@ -9,7 +9,6 @@
     X-Frame-Options = "DENY"
     X-Content-Type-Options = "nosniff"
 
-# SPA: qualquer rota devolve index.html (evita Cannot GET em paths do site)
 [[redirects]]
   from = "/*"
   to = "/index.html"

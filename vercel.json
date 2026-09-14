@@ -1,16 +1,8 @@
 {
   "version": 2,
   "buildCommand": null,
-  "outputDirectory": "web",
+  "outputDirectory": ".",
   "rewrites": [
-    { "source": "/(.*)", "destination": "/$1" }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        { "key": "X-Content-Type-Options", "value": "nosniff" }
-      ]
-    }
+    { "source": "/((?!api/).*)", "destination": "/index.html" }
   ]
 }

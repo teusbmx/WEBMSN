@@ -75,7 +75,14 @@ app.use(cors({
 app.use(express.json({ limit: '1mb' }));
 
 // Frontend estático (quando backend e web no mesmo host)
-const webDir = path.join(__dirname, '../web');
+const webDirCandidates = [
+  path.join(__dirname, '../web'),
+  path.join(__dirname, 'web'),
+  path.join(__dirname)
+];
+const webDir = webDirCandidates.find(d => {
+  try { return require('fs').existsSync(path.join(d, 'index.html')); } catch { return false; }
+}) || path.join(__dirname, '../web');
 app.use(express.static(webDir));
 
 const server = http.createServer(app);

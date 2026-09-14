@@ -51,12 +51,12 @@ document.addEventListener('keydown', unlockAudio);
 
 
 // ========== SOUNDS (uma reprodução por clique, sem loop) ==========
-const msnSound = new Audio('assets/msn-message.mp3');
+const msnSound = new Audio((window.WEB_MSN_SOUND_MSG || 'msn-message.mp3'));
 msnSound.preload = 'auto';
 msnSound.volume = 0.75;
 msnSound.loop = false;
 
-const nudgeSound = new Audio('assets/msn-nudge.mp3');
+const nudgeSound = new Audio((window.WEB_MSN_SOUND_NUDGE || 'msn-nudge.mp3'));
 nudgeSound.preload = 'auto';
 nudgeSound.volume = 0.8;
 nudgeSound.loop = false;
