@@ -715,3 +715,209 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   .app-layout { border-radius: 0; max-width: none; }
   .composer { padding-bottom: max(14px, env(safe-area-inset-bottom)); }
 }
+
+/* ========== MOBILE ADAPTATION (todas as funções preservadas) ========== */
+.btn-back {
+  display: none;
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  border: none;
+  border-radius: 12px;
+  background: var(--glass);
+  color: var(--text);
+  font-size: 28px;
+  line-height: 1;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  margin-right: 4px;
+}
+.btn-back:hover { background: rgba(59, 130, 246, 0.2); color: var(--accent-soft); }
+
+@media (max-width: 768px) {
+  html, body {
+    height: 100%;
+    height: 100dvh;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  #login-screen {
+    padding: 16px;
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+    min-height: 100dvh;
+  }
+
+  .login-window {
+    max-width: 100%;
+    border-radius: 20px;
+  }
+
+  .login-body { padding: 24px 20px 20px; }
+
+  .login-field input,
+  .login-field select,
+  .btn-entrar {
+    min-height: 48px;
+    font-size: 16px; /* evita zoom iOS */
+  }
+
+  .login-footer { position: static; margin-top: 16px; }
+
+  #app-screen {
+    padding: 0;
+    height: 100%;
+    height: 100dvh;
+  }
+
+  .app-layout {
+    max-width: none;
+    height: 100%;
+    height: 100dvh;
+    border-radius: 0;
+    box-shadow: none;
+    border: none;
+    transform: none !important;
+  }
+
+  .sidebar {
+    width: 100%;
+    min-width: 0;
+    border-right: none;
+  }
+
+  .chat-area {
+    display: none;
+    width: 100%;
+    height: 100%;
+  }
+
+  .app-layout.chat-open .sidebar { display: none !important; }
+  .app-layout.chat-open .chat-area { display: flex !important; }
+
+  .btn-back { display: flex; }
+
+  .sidebar-titlebar,
+  .chat-titlebar {
+    padding-top: max(10px, env(safe-area-inset-top));
+  }
+
+  .me-dp { width: 52px; height: 52px; font-size: 20px; }
+
+  .toolbar button {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+
+  .search-row input {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .contact-item {
+    padding: 12px 14px;
+    margin: 2px 8px;
+    min-height: 56px;
+  }
+
+  .contact-name { font-size: 15px; }
+  .contact-psm { font-size: 13px; }
+
+  .req-actions {
+    flex-direction: row;
+    gap: 6px;
+  }
+  .btn-accept, .btn-reject {
+    min-height: 36px;
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+  }
+
+  .chat-header {
+    min-height: 56px;
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .chat-actions button {
+    padding: 8px 12px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+
+  .messages {
+    padding: 12px 12px 16px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .msg {
+    max-width: 85%;
+    font-size: 15px;
+    padding: 10px 14px;
+  }
+
+  .composer {
+    padding: 10px 12px;
+    padding-bottom: max(10px, env(safe-area-inset-bottom));
+    gap: 8px;
+  }
+
+  .composer input {
+    min-height: 44px;
+    font-size: 16px;
+    border-radius: 22px;
+  }
+
+  .composer button.icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+  }
+
+  .btn-send {
+    min-height: 44px;
+    padding: 10px 16px;
+    border-radius: 22px;
+  }
+
+  .toast-container {
+    left: 12px;
+    right: 12px;
+    bottom: max(16px, env(safe-area-inset-bottom));
+  }
+
+  .toast {
+    min-width: 0;
+    max-width: none;
+    width: 100%;
+  }
+
+  .modal {
+    max-width: calc(100vw - 32px);
+    margin: 16px;
+  }
+
+  .emoji-grid {
+    grid-template-columns: repeat(6, 1fr);
+    max-height: 40vh;
+  }
+
+  /* Shake menos agressivo no celular */
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-4px); }
+    40% { transform: translateX(4px); }
+    60% { transform: translateX(-3px); }
+    80% { transform: translateX(3px); }
+  }
+}
+
+/* Tablets */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .app-layout { max-width: 100%; margin: 0; border-radius: 0; height: 100dvh; }
+  #app-screen { padding: 0; }
+  .sidebar { width: 300px; }
+  .btn-back { display: none; }
+}

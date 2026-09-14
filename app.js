@@ -511,6 +511,17 @@ async function respondContact(relationId, status) {
 }
 
 // ========== CHAT ==========
+
+function closeChat() {
+  currentContact = null;
+  currentConvId = null;
+  $('active-chat').classList.add('hidden');
+  $('empty-chat').classList.remove('hidden');
+  $('app-layout').classList.remove('chat-open');
+  renderContacts();
+  stopFlashTitle();
+}
+
 async function openChat(contact) {
   currentContact = contact;
   renderContacts();
@@ -519,6 +530,11 @@ async function openChat(contact) {
   $('empty-chat').classList.add('hidden');
   $('active-chat').classList.remove('hidden');
   $('app-layout').classList.add('chat-open');
+  try {
+    if (window.matchMedia('(max-width: 768px)').matches) {
+      history.pushState({ chat: true }, '');
+    }
+  } catch (_) {}
 
   $('chat-name').textContent = contact.display_name;
   $('chat-titlebar').textContent = contact.display_name;
@@ -723,6 +739,14 @@ $('modal-overlay').addEventListener('click', (e) => {
 });
 
 $('btn-logout').onclick = logout;
+if ($('btn-back')) $('btn-back').onclick = closeChat;
+// Botão voltar do celular
+window.addEventListener('popstate', () => {
+  if ($('app-layout') && $('app-layout').classList.contains('chat-open')) {
+    closeChat();
+  }
+});
+
 (function initSoundBtn() {
   const btn = $('btn-sound');
   if (!btn) return;
