@@ -396,7 +396,32 @@ function connectSocket() {
   socket.on('contact:request', (data) => {
     soundMessage();
     const name = (data && data.display_name) || 'Alguém';
-    showToast('Solicitação de amizade', name + ' quer adicionar você');
+    const fromId = data && data.from;
+    // Mostra na lista imediatamente (não depende só do GET)
+    if (fromId) {
+      const already = contacts.find(
+        c => c.id === fromId && (c.relation_status === 'incoming' || c.status === 'incoming')
+      );
+      if (!already) {
+        contacts.unshift({
+          id: fromId,
+          display_name: name,
+          email: data.email || '',
+          relation_status: 'incoming',
+          contact_relation_id: data.relation_id || ('temp-' + fromId),
+          status: 'offline',
+          personal_message: 'Quer ser seu contato'
+        });
+        window.contacts = contacts;
+        renderContacts();
+      }
+    }
+    showToast('Solicitação de amizade', name + ' quer adicionar você', () => {
+      // Foca a lista / scroll para solicitações
+      const list = $('contact-list');
+      if (list) list.scrollTop = 0;
+    });
+    // Confirma com o servidor
     loadContacts();
   });
   socket.on('contact:updated', () => {
@@ -468,13 +493,14 @@ function renderContacts() {
     );
   }
 
+  const rel = (c) => (c.relation_status || c.status || '').toLowerCase();
   const groups = {
-    incoming: list.filter(c => c.relation_status === 'incoming'),
-    pending: list.filter(c => c.relation_status === 'pending'),
-    online: list.filter(c => c.status === 'online' && c.relation_status !== 'pending' && c.relation_status !== 'incoming'),
-    busy: list.filter(c => c.status === 'busy' && c.relation_status !== 'pending' && c.relation_status !== 'incoming'),
-    away: list.filter(c => c.status === 'away' && c.relation_status !== 'pending' && c.relation_status !== 'incoming'),
-    offline: list.filter(c => (c.status === 'offline' || c.status === 'invisible') && c.relation_status !== 'pending' && c.relation_status !== 'incoming')
+    incoming: list.filter(c => rel(c) === 'incoming'),
+    pending: list.filter(c => rel(c) === 'pending'),
+    online: list.filter(c => c.status === 'online' && rel(c) !== 'pending' && rel(c) !== 'incoming'),
+    busy: list.filter(c => c.status === 'busy' && rel(c) !== 'pending' && rel(c) !== 'incoming'),
+    away: list.filter(c => c.status === 'away' && rel(c) !== 'pending' && rel(c) !== 'incoming'),
+    offline: list.filter(c => (c.status === 'offline' || c.status === 'invisible') && rel(c) !== 'pending' && rel(c) !== 'incoming')
   };
 
   const container = $('contact-list');
@@ -545,14 +571,34 @@ function renderContacts() {
 $('search').oninput = () => renderContacts();
 
 async function respondContact(relationId, status) {
-  await fetch(`${API}/api/contacts/${relationId}`, {
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ status })
-  });
-  loadContacts();
-  if (status === 'accepted') showToast('Contato', 'Solicitação aceita');
-  if (status === 'rejected') showToast('Contato', 'Solicitação recusada');
+  try {
+    if (String(relationId).startsWith('temp-')) {
+      showToast('Aguarde', 'Sincronizando convite…');
+      await loadContacts();
+      const fromId = String(relationId).replace(/^temp-/, '');
+      const real = contacts.find(c => c.id === fromId && (c.relation_status === 'incoming' || c.status === 'incoming'));
+      if (!real || !real.contact_relation_id) {
+        showToast('Erro', 'Convite não encontrado no servidor. Peça para reenviar.');
+        return;
+      }
+      relationId = real.contact_relation_id;
+    }
+    const res = await fetch(`${API}/api/contacts/${relationId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ status })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showToast('Erro', data.error || 'Não foi possível responder ao convite');
+      return;
+    }
+    if (status === 'accepted') showToast('Contato', 'Solicitação aceita');
+    if (status === 'rejected') showToast('Contato', 'Solicitação recusada');
+    loadContacts();
+  } catch (e) {
+    showToast('Erro', 'Falha de conexão');
+  }
 }
 
 // ========== CHAT ==========

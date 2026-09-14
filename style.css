@@ -959,3 +959,20 @@ button:focus-visible, input:focus-visible, select:focus-visible {
   padding: 0 6px;
   margin-left: 6px;
 }
+
+/* Solicitações de amizade — destaque */
+.section-title:first-child {
+  color: #FBBF24 !important;
+}
+.contact-item .req-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 6px;
+}
+.btn-accept {
+  background: #22C55E !important;
+  color: #fff !important;
+}
+.btn-reject {
+  background: rgba(239, 68, 68, 0.25) !important;
+}

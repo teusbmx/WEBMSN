@@ -352,16 +352,18 @@ app.get('/api/contacts', authMiddleware, (req, res) => {
   const result = myContacts.map(c => {
     const u = db.users.find(user => user.id === c.contact_id);
     if (!u) return null;
+    // relation_status = vínculo (incoming/pending/accepted); status = presença online
+    const presence = u.status === 'invisible' ? 'offline' : (u.status || 'offline');
     return {
       contact_relation_id: c.id,
-      relation_status: c.status,
+      relation_status: c.status, // incoming | pending | accepted | blocked
       nickname: c.nickname || null,
       id: u.id,
       email: u.email,
       display_name: u.display_name,
-      personal_message: u.personal_message || '',
+      personal_message: c.status === 'incoming' ? 'Quer ser seu contato' : (u.personal_message || ''),
       avatar_url: u.avatar_url || '',
-      status: u.status === 'invisible' ? 'offline' : (u.status || 'offline'),
+      status: c.status === 'incoming' || c.status === 'pending' ? presence : presence,
       last_seen: u.last_seen
     };
   }).filter(Boolean);
@@ -514,7 +516,8 @@ app.post('/api/contacts', authMiddleware, (req, res) => {
     const payload = {
       from: req.user.id,
       display_name: displayName,
-      relation_id: result.incoming.id
+      email: fromUser ? fromUser.email : '',
+      relation_id: result.incoming && result.incoming.id
     };
 
     io.to(`user:${targetId}`).emit('contact:request', payload);
