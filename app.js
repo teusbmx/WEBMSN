@@ -1,10 +1,15 @@
 // WEB MSN - Web Client (classic style + notifications + nudge)
-// Backend URL:
-// - Local: mesmo origin (backend serve a pasta web)
-// - Produção (Netlify/Vercel): defina window.WEB_MSN_API no config.js
-const API = (typeof window !== 'undefined' && window.WEB_MSN_API)
-  ? window.WEB_MSN_API.replace(/\/$/, '')
-  : window.location.origin;
+// API do backend (Render em produção; local usa o mesmo origin)
+(function () {
+  const fromConfig = (typeof window !== 'undefined' && window.WEB_MSN_API)
+    ? String(window.WEB_MSN_API).replace(/\/$/, '')
+    : '';
+  const host = (typeof window !== 'undefined' && window.location && window.location.hostname) || '';
+  const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '';
+  // Produção (Netlify/Vercel): backend no Render
+  window.__WEB_MSN_API__ = fromConfig || (isLocal ? window.location.origin : 'https://webmsn.onrender.com');
+})();
+const API = window.__WEB_MSN_API__;
 
 let token = localStorage.getItem('msn_token');
 let user = JSON.parse(localStorage.getItem('msn_user') || 'null');
