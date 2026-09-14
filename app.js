@@ -27,6 +27,8 @@ let lastNudgeAt = 0;
 const NUDGE_COOLDOWN_MS = 8000; // anti-spam CHAMAR ATENÇÃO
 let soundEnabled = localStorage.getItem('msn_sound') !== '0';
 let unreadByConv = JSON.parse(localStorage.getItem('msn_unread') || '{}');
+let unreadByContact = JSON.parse(localStorage.getItem('msn_unread_contact') || '{}');
+
 let deferredInstallPrompt = null;
 let pushSubscribed = false;
 
@@ -349,7 +351,7 @@ function connectSocket() {
     }
 
     if (!isMe) {
-      if (window.WebMsnPWA) WebMsnPWA.bumpUnread(msg.conversation_id);
+      bumpUnreadForMessage(msg);
       soundMessage();
       const name = msg.sender_name || 'Alguém';
       showToast(name, msg.type === 'nudge' ? '⚡ chamou sua atenção!' : msg.content, () => {
@@ -482,6 +484,60 @@ function formatPsm(text, isPending, status) {
   return note + escapeHtml(text);
 }
 
+
+function saveUnreadAll() {
+  try {
+    localStorage.setItem('msn_unread', JSON.stringify(unreadByConv));
+    localStorage.setItem('msn_unread_contact', JSON.stringify(unreadByContact));
+  } catch (_) {}
+  updateTotalUnreadBadge();
+  if (window.WebMsnPWA && WebMsnPWA.updateUnreadBadge) WebMsnPWA.updateUnreadBadge();
+}
+
+function updateTotalUnreadBadge() {
+  const el = $('unread-total');
+  const n = Object.values(unreadByContact).reduce((a, b) => a + (Number(b) || 0), 0);
+  if (el) {
+    if (n > 0) {
+      el.textContent = n > 99 ? '99+' : String(n);
+      el.classList.remove('hidden');
+    } else el.classList.add('hidden');
+  }
+  try {
+    document.title = n > 0 ? '(' + n + ') WEB MSN' : 'WEB MSN';
+  } catch (_) {}
+}
+
+function bumpUnreadForMessage(msg) {
+  if (!msg || msg.sender_id === (user && user.id)) return;
+  // Se a conversa está aberta e visível, não conta
+  if (currentConvId === msg.conversation_id && !document.hidden) return;
+  const convId = msg.conversation_id;
+  const contactId = msg.sender_id;
+  if (convId) unreadByConv[convId] = (unreadByConv[convId] || 0) + 1;
+  if (contactId) unreadByContact[contactId] = (unreadByContact[contactId] || 0) + 1;
+  saveUnreadAll();
+  renderContacts(); // badge ao lado do nome
+}
+
+function clearUnreadForContact(contactId, conversationId) {
+  if (contactId && unreadByContact[contactId]) {
+    delete unreadByContact[contactId];
+  }
+  if (conversationId && unreadByConv[conversationId]) {
+    delete unreadByConv[conversationId];
+  }
+  saveUnreadAll();
+  if (window.WebMsnPWA) {
+    try { WebMsnPWA.clearUnread(conversationId); } catch (_) {}
+  }
+}
+
+function unreadCountForContact(contactId) {
+  return Number(unreadByContact[contactId] || 0);
+}
+
+
 function renderContacts() {
   const q = $('search').value.trim().toLowerCase();
   let list = contacts;
@@ -515,7 +571,9 @@ function renderContacts() {
 
     items.forEach(c => {
       const el = document.createElement('div');
-      el.className = 'contact-item' + (currentContact && currentContact.id === c.id ? ' active' : '');
+      el.className = 'contact-item'
+        + (currentContact && currentContact.id === c.id ? ' active' : '')
+        + ((!isIncoming && !isOutgoing && unreadCountForContact(c.id) > 0) ? ' has-unread' : '');
       const st = c.status === 'invisible' ? 'offline' : (c.status || 'offline');
       let actions = '';
       if (isIncoming) {
@@ -532,7 +590,7 @@ function renderContacts() {
       el.innerHTML = `
         <div class="contact-icon ${st}">${buddyIcon(st)}</div>
         <div class="contact-text">
-          <div class="contact-name">${escapeHtml(c.display_name)}</div>
+          <div class="contact-name">${escapeHtml(c.display_name)}${(!isIncoming && !isOutgoing && unreadCountForContact(c.id) > 0) ? `<span class="unread-pill" title="Mensagens não lidas">${unreadCountForContact(c.id) > 99 ? '99+' : unreadCountForContact(c.id)}</span>` : ''}</div>
           <div class="contact-psm">${psmText}</div>
         </div>
         ${actions}
@@ -615,6 +673,9 @@ function closeChat() {
 
 async function openChat(contact) {
   currentContact = contact;
+  if (contact && contact.id) {
+    clearUnreadForContact(contact.id, null);
+  }
   renderContacts();
   stopFlashTitle();
 
@@ -644,7 +705,8 @@ async function openChat(contact) {
   messages[currentConvId] = await msgRes.json();
   renderMessages();
   $('msg-input').focus();
-  if (window.WebMsnPWA) WebMsnPWA.clearUnread(currentConvId);
+  clearUnreadForContact(contact.id, currentConvId);
+  renderContacts();
 }
 
 function renderMessages() {
