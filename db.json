@@ -1,87 +1,127 @@
 {
   "users": [
     {
-      "id": "e9abe9eb-0686-4f92-91d5-93d3f085b01d",
+      "id": "be0f3c8b-2dcc-4b8d-a4db-c878459bdc55",
       "email": "mateuscdm2@gmail.com",
-      "password_hash": "$2a$10$eGOl4nbCWoFj0swWGYVRqutPcNZRXCPTJCbLYOtr0wdJ.AY/2mD8O",
-      "display_name": "XILITOZK",
-      "personal_message": "É O ZK VIDA",
-      "avatar_url": "",
-      "status": "offline",
-      "last_seen": "2026-09-14T03:13:36.677Z",
-      "created_at": "2026-09-14T03:03:57.037Z"
-    },
-    {
-      "id": "60205cb9-1129-4cbe-85f0-bda5298b29b3",
-      "email": "mateuscdm3@gmail.com",
-      "password_hash": "$2a$10$13zMnKGeZxGvEXoSGo3cRuPamybhwoLN9XON9GPXnjJt.kff5ANLK",
-      "display_name": "ZKDELAS",
-      "personal_message": "ZK DO ODIO",
+      "password_hash": "$2a$10$MjAfQjXXXcDs/sLV8Z.wqO90DiwQcJq1D3Bl/GnJpYuisTKjXwar6",
+      "display_name": "Mattheus Walker",
+      "personal_message": "",
       "avatar_url": "",
       "status": "away",
-      "last_seen": "2026-09-14T03:30:42.158Z",
-      "created_at": "2026-09-14T03:05:15.850Z"
+      "last_seen": "2026-09-14T06:20:16.176Z",
+      "created_at": "2026-09-14T06:18:52.683Z"
+    },
+    {
+      "id": "72358431-149f-4909-a490-c1dc7347fc34",
+      "email": "mateuscdm3@gmail.com",
+      "password_hash": "$2a$10$KTvx05zYEjAbp0HyHWpsSeGVld2pgRR84dvmuVm38T6WeOk9F2xCa",
+      "display_name": "XILITO ZK",
+      "personal_message": "",
+      "avatar_url": "",
+      "status": "busy",
+      "last_seen": "2026-09-14T06:20:12.788Z",
+      "created_at": "2026-09-14T06:19:09.555Z"
     }
   ],
   "contacts": [
     {
-      "id": "2b88ac9d-02bd-438d-8b0b-1930727f43b6",
-      "user_id": "60205cb9-1129-4cbe-85f0-bda5298b29b3",
-      "contact_id": "e9abe9eb-0686-4f92-91d5-93d3f085b01d",
+      "id": "719e210a-9443-4c90-9515-577e931d5299",
+      "user_id": "72358431-149f-4909-a490-c1dc7347fc34",
+      "contact_id": "be0f3c8b-2dcc-4b8d-a4db-c878459bdc55",
       "status": "accepted",
       "nickname": null,
-      "created_at": "2026-09-14T03:05:23.657Z"
+      "created_at": "2026-09-14T06:19:21.069Z"
     },
     {
-      "id": "644d2fe7-7342-4d45-8e14-1c3ca24b82bf",
-      "user_id": "e9abe9eb-0686-4f92-91d5-93d3f085b01d",
-      "contact_id": "60205cb9-1129-4cbe-85f0-bda5298b29b3",
+      "id": "51a12822-b778-4d76-aa2a-ca26106a83a9",
+      "user_id": "be0f3c8b-2dcc-4b8d-a4db-c878459bdc55",
+      "contact_id": "72358431-149f-4909-a490-c1dc7347fc34",
       "status": "accepted",
       "nickname": null,
-      "created_at": "2026-09-14T03:05:37.127Z"
+      "created_at": "2026-09-14T06:19:21.069Z"
     }
   ],
   "conversations": [
     {
-      "id": "e4c34d8e-35c2-4498-91fc-04b40ab3c72b",
+      "id": "48de176b-538a-4a0d-9b29-f07d407651da",
       "type": "direct",
-      "created_at": "2026-09-14T03:05:37.127Z"
+      "created_at": "2026-09-14T06:19:29.555Z"
     }
   ],
   "participants": [
     {
-      "conversation_id": "e4c34d8e-35c2-4498-91fc-04b40ab3c72b",
-      "user_id": "60205cb9-1129-4cbe-85f0-bda5298b29b3"
+      "conversation_id": "48de176b-538a-4a0d-9b29-f07d407651da",
+      "user_id": "be0f3c8b-2dcc-4b8d-a4db-c878459bdc55"
     },
     {
-      "conversation_id": "e4c34d8e-35c2-4498-91fc-04b40ab3c72b",
-      "user_id": "e9abe9eb-0686-4f92-91d5-93d3f085b01d"
+      "conversation_id": "48de176b-538a-4a0d-9b29-f07d407651da",
+      "user_id": "72358431-149f-4909-a490-c1dc7347fc34"
     }
   ],
   "messages": [
     {
-      "id": "18442270-4b26-4d14-a5a7-9258fc3f26b4",
-      "conversation_id": "e4c34d8e-35c2-4498-91fc-04b40ab3c72b",
-      "sender_id": "e9abe9eb-0686-4f92-91d5-93d3f085b01d",
-      "content": "EAI CHEFE",
+      "id": "99cce217-a9cd-4402-9699-9a0c7113ebd4",
+      "conversation_id": "48de176b-538a-4a0d-9b29-f07d407651da",
+      "sender_id": "be0f3c8b-2dcc-4b8d-a4db-c878459bdc55",
+      "content": "TESTE",
       "type": "text",
-      "created_at": "2026-09-14T03:05:58.086Z"
+      "created_at": "2026-09-14T06:19:40.179Z"
     },
     {
-      "id": "0f163eef-8a25-46b7-b216-10c66e656ff8",
-      "conversation_id": "e4c34d8e-35c2-4498-91fc-04b40ab3c72b",
-      "sender_id": "60205cb9-1129-4cbe-85f0-bda5298b29b3",
-      "content": "😂",
+      "id": "7ff7f425-4b95-4e35-8b3c-9b7fd71ddffa",
+      "conversation_id": "48de176b-538a-4a0d-9b29-f07d407651da",
+      "sender_id": "72358431-149f-4909-a490-c1dc7347fc34",
+      "content": "TE",
       "type": "text",
-      "created_at": "2026-09-14T03:06:19.479Z"
+      "created_at": "2026-09-14T06:19:51.454Z"
     },
     {
-      "id": "75602c9d-4248-4eb7-b915-fe498cd9b823",
-      "conversation_id": "e4c34d8e-35c2-4498-91fc-04b40ab3c72b",
-      "sender_id": "e9abe9eb-0686-4f92-91d5-93d3f085b01d",
-      "content": "DA O TEU PAPO",
+      "id": "6e2c7fd1-4388-4cbb-8b65-45ca7fc14128",
+      "conversation_id": "48de176b-538a-4a0d-9b29-f07d407651da",
+      "sender_id": "72358431-149f-4909-a490-c1dc7347fc34",
+      "content": "TESTE",
       "type": "text",
-      "created_at": "2026-09-14T03:12:45.725Z"
+      "created_at": "2026-09-14T06:20:23.197Z"
+    },
+    {
+      "id": "758b1826-6097-4658-9576-831b91a9596f",
+      "conversation_id": "48de176b-538a-4a0d-9b29-f07d407651da",
+      "sender_id": "72358431-149f-4909-a490-c1dc7347fc34",
+      "content": "CHAMAR ATENÇÃO!",
+      "type": "nudge",
+      "created_at": "2026-09-14T06:20:26.154Z"
+    },
+    {
+      "id": "467df996-ad73-4ce4-8c83-5241e074841e",
+      "conversation_id": "48de176b-538a-4a0d-9b29-f07d407651da",
+      "sender_id": "be0f3c8b-2dcc-4b8d-a4db-c878459bdc55",
+      "content": "CHAMAR ATENÇÃO!",
+      "type": "nudge",
+      "created_at": "2026-09-14T06:20:34.196Z"
+    },
+    {
+      "id": "e1996f19-254e-414b-91d2-538d9c646713",
+      "conversation_id": "48de176b-538a-4a0d-9b29-f07d407651da",
+      "sender_id": "72358431-149f-4909-a490-c1dc7347fc34",
+      "content": "CHAMAR ATENÇÃO!",
+      "type": "nudge",
+      "created_at": "2026-09-14T06:20:36.436Z"
+    },
+    {
+      "id": "65a8d295-a361-483f-8336-55dd8b2a86e0",
+      "conversation_id": "48de176b-538a-4a0d-9b29-f07d407651da",
+      "sender_id": "72358431-149f-4909-a490-c1dc7347fc34",
+      "content": "CHAMAR ATENÇÃO!",
+      "type": "nudge",
+      "created_at": "2026-09-14T06:20:45.429Z"
+    },
+    {
+      "id": "09e226be-c4dd-4256-97b6-6ecf08394337",
+      "conversation_id": "48de176b-538a-4a0d-9b29-f07d407651da",
+      "sender_id": "be0f3c8b-2dcc-4b8d-a4db-c878459bdc55",
+      "content": "S",
+      "type": "text",
+      "created_at": "2026-09-14T06:32:00.029Z"
     }
   ]
 }

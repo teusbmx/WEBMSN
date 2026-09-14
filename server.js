@@ -1,5 +1,5 @@
 /**
- * MSN Classic Messenger Backend
+ * WEB MSN Backend
  * Real-time messaging inspired by MSN Messenger 2005/2006
  * Pure JavaScript storage (no native modules) - works on Windows without Visual Studio
  */
@@ -257,7 +257,7 @@ app.get('/api/users/search', authMiddleware, (req, res) => {
 });
 
 app.get('/api/contacts', authMiddleware, (req, res) => {
-  const myContacts = db.contacts.filter(c => c.user_id === req.user.id && c.status !== 'blocked');
+  const myContacts = db.contacts.filter(c => c.user_id === req.user.id && c.status !== 'blocked' && c.status !== 'rejected');
 
   const result = myContacts.map(c => {
     const u = db.users.find(user => user.id === c.contact_id);
@@ -302,6 +302,8 @@ app.post('/api/contacts', authMiddleware, (req, res) => {
   }
 
   const id = uuidv4();
+  const incomingId = uuidv4();
+  // Solicitação de quem enviou
   db.contacts.push({
     id,
     user_id: req.user.id,
@@ -310,13 +312,24 @@ app.post('/api/contacts', authMiddleware, (req, res) => {
     nickname: null,
     created_at: new Date().toISOString()
   });
+  // Pedido aparece para o outro usuário aceitar/recusar
+  db.contacts.push({
+    id: incomingId,
+    user_id: targetId,
+    contact_id: req.user.id,
+    status: 'incoming',
+    nickname: null,
+    created_at: new Date().toISOString()
+  });
   persist();
 
+  const fromUser = db.users.find(u => u.id === req.user.id);
   const targetSocket = onlineUsers.get(targetId);
   if (targetSocket) {
     io.to(targetSocket.socketId).emit('contact:request', {
       from: req.user.id,
-      display_name: req.user.display_name
+      display_name: fromUser ? fromUser.display_name : req.user.display_name,
+      relation_id: incomingId
     });
   }
 
@@ -325,14 +338,27 @@ app.post('/api/contacts', authMiddleware, (req, res) => {
 
 app.patch('/api/contacts/:relationId', authMiddleware, (req, res) => {
   const { status } = req.body;
-  if (!['accepted', 'blocked'].includes(status)) {
-    return res.status(400).json({ error: 'status deve ser accepted ou blocked' });
+  // accepted | blocked | rejected
+  if (!['accepted', 'blocked', 'rejected'].includes(status)) {
+    return res.status(400).json({ error: 'status deve ser accepted, blocked ou rejected' });
   }
 
   const rel = db.contacts.find(c => c.id === req.params.relationId && c.user_id === req.user.id);
   if (!rel) return res.status(404).json({ error: 'Relação não encontrada' });
 
-  rel.status = status;
+  if (status === 'rejected') {
+    // Remove pedido dos dois lados
+    db.contacts = db.contacts.filter(c =>
+      !(c.user_id === req.user.id && c.contact_id === rel.contact_id) &&
+      !(c.user_id === rel.contact_id && c.contact_id === req.user.id && (c.status === 'pending' || c.status === 'incoming'))
+    );
+    persist();
+    const other = onlineUsers.get(rel.contact_id);
+    if (other) io.to(other.socketId).emit('contact:updated', {});
+    return res.json({ ok: true, status: 'rejected' });
+  }
+
+  rel.status = status === 'blocked' ? 'blocked' : 'accepted';
 
   if (status === 'accepted') {
     let reverse = db.contacts.find(c => c.user_id === rel.contact_id && c.contact_id === req.user.id);
@@ -348,7 +374,14 @@ app.patch('/api/contacts/:relationId', authMiddleware, (req, res) => {
     } else {
       reverse.status = 'accepted';
     }
+    // Limpa incoming residual
+    db.contacts.forEach(c => {
+      if (c.user_id === req.user.id && c.contact_id === rel.contact_id) c.status = 'accepted';
+      if (c.user_id === rel.contact_id && c.contact_id === req.user.id) c.status = 'accepted';
+    });
     ensureDirectConversation(req.user.id, rel.contact_id);
+    const other = onlineUsers.get(rel.contact_id);
+    if (other) io.to(other.socketId).emit('contact:updated', {});
   }
 
   persist();
@@ -654,7 +687,7 @@ app.get('/health', (req, res) => res.json({ status: 'ok', online: onlineUsers.si
 server.listen(PORT, () => {
   console.log(`
 ╔══════════════════════════════════════════════════════╗
-║         MSN Classic Messenger Backend                ║
+║         WEB MSN Backend                ║
 ║         http://localhost:${PORT}                        ║
 ║         Storage: JSON (no native deps)               ║
 ║         Socket.io ready                              ║

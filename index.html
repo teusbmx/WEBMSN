@@ -3,136 +3,163 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MSN Classic Messenger</title>
+  <meta name="description" content="WEB MSN — recriação nostálgica e funcional do MSN clássico">
+  <meta name="theme-color" content="#0B1220">
+  <title>WEB MSN</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='6' fill='%234A90D9'/><circle cx='16' cy='11' r='5' fill='white'/><path d='M6 28c0-5.5 4.5-9 10-9s10 3.5 10 9' fill='white'/></svg>">
   <link rel="stylesheet" href="style.css">
   <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
 </head>
 <body>
-  <!-- LOGIN -->
+  <div id="conn-bar" class="conn-bar hidden">Reconectando ao servidor…</div>
+
   <div id="login-screen" class="screen">
-    <div class="login-card">
-      <div class="login-logo">💬</div>
-      <h1>MSN Classic</h1>
-      <p class="login-sub">Messenger 2005/2006</p>
-
-      <div id="login-error" class="error hidden"></div>
-
-      <div id="register-fields" class="hidden">
-        <input type="text" id="reg-name" placeholder="Nome de exibição" autocomplete="name">
+    <div class="login-window" role="dialog" aria-label="Login">
+      <div class="login-titlebar">
+        <span class="titlebar-icon">💬</span>
+        <span>WEB MSN</span>
+        <span class="help">Ajuda ▾</span>
       </div>
-      <input type="email" id="email" placeholder="E-mail" autocomplete="email">
-      <input type="password" id="password" placeholder="Senha" autocomplete="current-password">
-
-      <button id="btn-submit" class="btn-primary">Entrar</button>
-      <button id="btn-toggle" class="btn-link">Não tem conta? Criar agora</button>
+      <div class="login-body">
+        <div class="login-avatar-big" aria-hidden="true">👤</div>
+        <div id="login-error" class="error hidden" role="alert"></div>
+        <div id="register-fields" class="hidden">
+          <div class="login-field">
+            <label for="reg-name">Nome de exibição</label>
+            <input type="text" id="reg-name" autocomplete="name" maxlength="40" placeholder="Como você quer aparecer">
+          </div>
+        </div>
+        <div class="login-field">
+          <label for="email">Endereço de email</label>
+          <input type="email" id="email" autocomplete="email" placeholder="seu@email.com">
+        </div>
+        <div class="login-field">
+          <label for="password">Senha</label>
+          <input type="password" id="password" autocomplete="current-password" placeholder="••••••••">
+        </div>
+        <div class="login-field">
+          <label for="login-status">Entrar como</label>
+          <select id="login-status">
+            <option value="online">Online</option>
+            <option value="busy">Ocupado</option>
+            <option value="away">Ausente</option>
+            <option value="invisible">Invisível</option>
+          </select>
+        </div>
+        <div class="login-options">
+          <label><input type="checkbox" id="chk-remember"> Lembrar-me</label>
+          <label><input type="checkbox" id="chk-pass"> Lembrar minha senha</label>
+          <label><input type="checkbox" id="chk-auto"> Entrar automaticamente</label>
+        </div>
+        <button id="btn-submit" class="btn-entrar" type="button">Entrar</button>
+        <button id="btn-toggle" class="login-toggle" type="button">Não tem conta? Criar agora</button>
+      </div>
     </div>
+    <p class="login-footer">Recriação nostálgica · Sem código proprietário da Microsoft</p>
   </div>
 
-  <!-- MAIN APP -->
   <div id="app-screen" class="screen hidden">
-    <div class="app-layout">
-      <!-- SIDEBAR - Contact List -->
-      <aside class="sidebar">
+    <div class="app-layout" id="app-layout">
+      <aside class="sidebar" aria-label="Lista de contatos">
+        <div class="sidebar-titlebar">
+          <span class="titlebar-icon">💬</span>
+          <span>WEB MSN</span>
+          <button type="button" class="titlebar-close" id="btn-logout" title="Sair" aria-label="Sair">✕</button>
+        </div>
         <div class="sidebar-header">
-          <div class="me-info">
-            <div class="avatar me-avatar" id="me-avatar">?</div>
-            <div class="me-text">
+          <div class="me-row">
+            <div class="me-dp" id="me-avatar" aria-hidden="true">?</div>
+            <div class="me-info">
               <div class="me-name" id="me-name">Eu</div>
-              <div class="me-status" id="me-status-line">
-                <span class="status-dot" id="me-dot"></span>
+              <button type="button" class="me-status-line" id="me-status-line" title="Alterar status">
+                <span class="status-dot online" id="me-dot"></span>
                 <span id="me-status-label">Online</span>
-                <span class="chevron">▼</span>
-              </div>
-              <div class="me-psm" id="me-psm" title="Clique para editar">Toque para mensagem pessoal</div>
+                <span class="chevron" aria-hidden="true">▾</span>
+              </button>
+              <button type="button" class="me-psm" id="me-psm" title="Editar mensagem pessoal">Clique para mensagem pessoal</button>
             </div>
           </div>
-          <div class="header-actions">
-            <button class="icon-btn" id="btn-add-contact" title="Adicionar contato">＋</button>
-            <button class="icon-btn" id="btn-logout" title="Sair">⏻</button>
+          <div class="toolbar" role="toolbar">
+            <button type="button" title="Adicionar contato" id="btn-add-contact">➕</button>
+            <button type="button" title="Sons" id="btn-sound">🔊</button>
+            <button type="button" title="Email" disabled>✉️</button>
+            <button type="button" title="Arquivos" disabled>📁</button>
+            <button type="button" title="Jogos" disabled>🎮</button>
+            <button type="button" title="Vídeo" disabled>📹</button>
           </div>
         </div>
-
-        <div class="search-box">
-          <input type="text" id="search" placeholder="Buscar contatos...">
+        <div class="search-row">
+          <input type="search" id="search" placeholder="Localizar um contato…" aria-label="Buscar contatos" autocomplete="off">
         </div>
-
-        <div class="contact-list" id="contact-list">
-          <!-- filled by JS -->
-        </div>
+        <div class="contact-list" id="contact-list" role="list"></div>
       </aside>
 
-      <!-- CHAT AREA -->
       <main class="chat-area" id="chat-area">
         <div id="empty-chat" class="empty-chat">
-          <div class="empty-icon">💬</div>
-          <p>Selecione um contato para começar a conversar</p>
-          <p class="empty-hint">Inspirado no MSN Messenger clássico</p>
+          <div class="empty-icon" aria-hidden="true">💬</div>
+          <p class="empty-title">WEB MSN</p>
+          <p class="empty-hint">Selecione um contato para conversar</p>
         </div>
-
         <div id="active-chat" class="active-chat hidden">
+          <div class="chat-titlebar" id="chat-titlebar">Conversa</div>
           <div class="chat-header">
-            <div class="chat-contact">
-              <div class="avatar" id="chat-avatar">?</div>
-              <div>
-                <div class="chat-name" id="chat-name">Contato</div>
-                <div class="chat-status" id="chat-status">Offline</div>
-              </div>
+            <div class="chat-dp" id="chat-avatar" aria-hidden="true">?</div>
+            <div class="chat-meta">
+              <div class="chat-name" id="chat-name">Contato</div>
+              <div class="chat-status" id="chat-status">Offline</div>
+            </div>
+            <div class="chat-actions">
+              <button type="button" id="btn-nudge" title="CHAMAR ATENÇÃO">⚡ CHAMAR ATENÇÃO</button>
             </div>
           </div>
-
-          <div class="messages" id="messages"></div>
-
-          <div class="typing-bar hidden" id="typing-bar">está digitando...</div>
-
+          <div class="messages" id="messages" role="log" aria-live="polite"></div>
+          <div class="typing-bar hidden" id="typing-bar"></div>
           <div class="composer">
-            <button class="icon-btn" id="btn-emoji" title="Emoticons">☺</button>
-            <input type="text" id="msg-input" placeholder="Digite uma mensagem..." autocomplete="off">
-            <button class="btn-send" id="btn-send">Enviar</button>
+            <button type="button" class="icon" id="btn-emoji" title="Emoticons">☺</button>
+            <input type="text" id="msg-input" placeholder="Digite uma mensagem…" autocomplete="off" maxlength="2000">
+            <button type="button" class="btn-send" id="btn-send">Enviar</button>
           </div>
         </div>
       </main>
     </div>
   </div>
 
-  <!-- MODALS -->
+  <div class="toast-container" id="toasts" aria-live="assertive"></div>
+
   <div id="modal-overlay" class="modal-overlay hidden">
     <div class="modal" id="modal-add">
       <h3>Adicionar contato</h3>
-      <input type="email" id="add-email" placeholder="E-mail do contato">
+      <input type="email" id="add-email" placeholder="email@exemplo.com" autocomplete="off">
       <div class="modal-actions">
-        <button class="btn-link" id="btn-cancel-add">Cancelar</button>
-        <button class="btn-primary" id="btn-confirm-add">Adicionar</button>
+        <button type="button" class="btn-link" id="btn-cancel-add">Cancelar</button>
+        <button type="button" class="btn-primary" id="btn-confirm-add">Adicionar</button>
       </div>
     </div>
-
     <div class="modal hidden" id="modal-status">
       <h3>Meu status</h3>
       <div class="status-options">
-        <button data-status="online"><span class="status-dot online"></span> Online</button>
-        <button data-status="busy"><span class="status-dot busy"></span> Ocupado</button>
-        <button data-status="away"><span class="status-dot away"></span> Ausente</button>
-        <button data-status="invisible"><span class="status-dot offline"></span> Invisível</button>
-        <button data-status="offline"><span class="status-dot offline"></span> Offline</button>
+        <button type="button" data-status="online"><span class="status-dot online"></span> Online</button>
+        <button type="button" data-status="busy"><span class="status-dot busy"></span> Ocupado</button>
+        <button type="button" data-status="away"><span class="status-dot away"></span> Ausente</button>
+        <button type="button" data-status="invisible"><span class="status-dot offline"></span> Invisível</button>
+        <button type="button" data-status="offline"><span class="status-dot offline"></span> Offline</button>
       </div>
-      <button class="btn-link" id="btn-cancel-status">Fechar</button>
+      <button type="button" class="btn-link" id="btn-cancel-status">Fechar</button>
     </div>
-
     <div class="modal hidden" id="modal-psm">
       <h3>Mensagem pessoal</h3>
       <input type="text" id="psm-input" maxlength="128" placeholder="O que você está fazendo?">
       <div class="modal-actions">
-        <button class="btn-link" id="btn-cancel-psm">Cancelar</button>
-        <button class="btn-primary" id="btn-save-psm">Salvar</button>
+        <button type="button" class="btn-link" id="btn-cancel-psm">Cancelar</button>
+        <button type="button" class="btn-primary" id="btn-save-psm">Salvar</button>
       </div>
     </div>
-
     <div class="modal hidden" id="modal-emoji">
       <h3>Emoticons</h3>
       <div class="emoji-grid" id="emoji-grid"></div>
-      <button class="btn-link" id="btn-close-emoji">Fechar</button>
+      <button type="button" class="btn-link" id="btn-close-emoji">Fechar</button>
     </div>
   </div>
-
   <script src="app.js"></script>
 </body>
 </html>
