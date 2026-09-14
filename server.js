@@ -707,7 +707,7 @@ app.get('/api', (req, res) => {
   });
 });
 
-app.get('/health, (req, res) => res.json({ status: 'ok', online: onlineUsers.size, users: db.users.length }));
+app.get('/health', (req, res) => res.json({ status: 'ok', online: onlineUsers.size, users: db.users.length }));
 
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`
