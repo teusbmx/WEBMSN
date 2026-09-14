@@ -1,5 +1,10 @@
 // WEB MSN - Web Client (classic style + notifications + nudge)
-const API = window.location.origin;
+// Backend URL:
+// - Local: mesmo origin (backend serve a pasta web)
+// - Produção (Netlify/Vercel): defina window.WEB_MSN_API no config.js
+const API = (typeof window !== 'undefined' && window.WEB_MSN_API)
+  ? window.WEB_MSN_API.replace(/\/$/, '')
+  : window.location.origin;
 
 let token = localStorage.getItem('msn_token');
 let user = JSON.parse(localStorage.getItem('msn_user') || 'null');

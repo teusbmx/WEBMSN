@@ -1,0 +1,16 @@
+# Frontend only — backend fica no Render
+[build]
+  publish = "web"
+  command = "echo 'Static WEB MSN — no build step'"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+
+# SPA: qualquer rota devolve index.html (evita Cannot GET em paths do site)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

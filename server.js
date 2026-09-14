@@ -15,7 +15,7 @@ const fs = require('fs');
 const path = require('path');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'msn-classic-secret-change-me-in-production-2026';
-const PORT = process.env.PORT || 10000;
+const PORT = process.env.PORT || 3000;
 const DB_FILE = path.join(__dirname, 'db.json');
 
 // ============== SIMPLE JSON DATABASE ==============
@@ -55,11 +55,28 @@ loadDb();
 
 // ============== EXPRESS + SOCKET.IO ==============
 const app = express();
-app.use(cors());
-app.use(express.json());
 
-// Versão web do MSN Classic (abre em http://localhost:10000)
-app.use(express.static(path.join(__dirname, '../web')));
+// CORS: permite frontend na Netlify/Vercel + local
+const allowedOrigins = (process.env.CORS_ORIGINS || '*')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin: (origin, cb) => {
+    if (!origin || allowedOrigins.includes('*') || allowedOrigins.includes(origin)) {
+      return cb(null, true);
+    }
+    return cb(null, true); // MVP: libera; restrinja em produção com CORS_ORIGINS
+  },
+  methods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
+app.use(express.json({ limit: '1mb' }));
+
+// Frontend estático (quando backend e web no mesmo host)
+const webDir = path.join(__dirname, '../web');
+app.use(express.static(webDir));
 
 const server = http.createServer(app);
 const io = new Server(server, {
@@ -682,9 +699,17 @@ app.get('/server', (req, res) => {
 </html>`);
 });
 
-app.get('/health', (req, res) => res.json({ status: 'ok', online: onlineUsers.size, users: db.users.length }));
+app.get('/api', (req, res) => {
+  res.json({
+    name: 'WEB MSN API',
+    status: 'ok',
+    endpoints: ['/api/register', '/api/login', '/api/contacts', '/health', '/server']
+  });
+});
 
-server.listen(PORT, () => {
+app.get('/health, (req, res) => res.json({ status: 'ok', online: onlineUsers.size, users: db.users.length }));
+
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`
 ╔══════════════════════════════════════════════════════╗
 ║         WEB MSN Backend                ║
