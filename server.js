@@ -24,7 +24,8 @@ let db = {
   contacts: [],
   conversations: [],
   participants: [],
-  messages: []
+  messages: [],
+  push_subscriptions: [] // multi-device: several per user_id
 };
 
 function loadDb() {
@@ -36,7 +37,8 @@ function loadDb() {
       db.conversations = db.conversations || [];
       db.participants = db.participants || [];
       db.messages = db.messages || [];
-      console.log(`[DB] Loaded ${db.users.length} users, ${db.messages.length} messages`);
+      db.push_subscriptions = db.push_subscriptions || [];
+      console.log(`[DB] Loaded ${db.users.length} users, ${db.messages.length} messages, ${db.push_subscriptions.length} push subs`);
     }
   } catch (e) {
     console.error('[DB] Error loading, starting fresh:', e.message);
@@ -51,7 +53,69 @@ function persist() {
   }
 }
 
+
 loadDb();
+
+// ============== WEB PUSH (VAPID) ==============
+let webpush = null;
+let VAPID_PUBLIC = process.env.VAPID_PUBLIC_KEY || '';
+let VAPID_PRIVATE = process.env.VAPID_PRIVATE_KEY || '';
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || 'mailto:admin@webmsn.app';
+const VAPID_FILE = path.join(__dirname, 'vapid.json');
+
+try {
+  webpush = require('web-push');
+  if (!VAPID_PUBLIC || !VAPID_PRIVATE) {
+    if (fs.existsSync(VAPID_FILE)) {
+      const saved = JSON.parse(fs.readFileSync(VAPID_FILE, 'utf8'));
+      VAPID_PUBLIC = saved.publicKey;
+      VAPID_PRIVATE = saved.privateKey;
+    } else {
+      const keys = webpush.generateVAPIDKeys();
+      VAPID_PUBLIC = keys.publicKey;
+      VAPID_PRIVATE = keys.privateKey;
+      try {
+        fs.writeFileSync(VAPID_FILE, JSON.stringify(keys, null, 2));
+        console.log('[Push] VAPID keys geradas e salvas em vapid.json');
+      } catch (e) {
+        console.warn('[Push] Não foi possível salvar vapid.json:', e.message);
+      }
+    }
+  }
+  webpush.setVapidDetails(VAPID_SUBJECT, VAPID_PUBLIC, VAPID_PRIVATE);
+  console.log('[Push] Web Push ativo');
+} catch (e) {
+  console.warn('[Push] web-push não instalado. Rode: npm install web-push');
+  console.warn('[Push]', e.message);
+}
+
+async function sendPushToUser(userId, payload, excludeEndpoint) {
+  if (!webpush || !VAPID_PUBLIC) return;
+  const subs = (db.push_subscriptions || []).filter((s) => s.user_id === userId);
+  if (!subs.length) return;
+  const body = JSON.stringify(payload);
+  for (const sub of subs) {
+    if (excludeEndpoint && sub.endpoint === excludeEndpoint) continue;
+    try {
+      await webpush.sendNotification(
+        { endpoint: sub.endpoint, keys: sub.keys },
+        body,
+        { TTL: 60 * 60, urgency: 'high' }
+      );
+    } catch (err) {
+      const code = err.statusCode || err.status;
+      // 404/410 = subscription expired → remove
+      if (code === 404 || code === 410) {
+        db.push_subscriptions = db.push_subscriptions.filter((s) => s.endpoint !== sub.endpoint);
+        persist();
+        console.log('[Push] Subscription removida (expirada):', sub.endpoint.slice(0, 48));
+      } else {
+        console.warn('[Push] Falha ao enviar:', code || err.message);
+      }
+    }
+  }
+}
+
 
 // ============== EXPRESS + SOCKET.IO ==============
 const app = express();
@@ -558,6 +622,25 @@ io.on('connection', (socket) => {
         io.to(`user:${p.user_id}`).emit('message:new', fullMessage);
       }
 
+      // Push real para destinatários (multi-dispositivo), exceto quem enviou
+      const preview =
+        type === 'nudge'
+          ? 'Chamou sua atenção!'
+          : content.trim().slice(0, 120);
+      for (const p of participants) {
+        if (p.user_id === userId) continue;
+        const isOnline = onlineUsers.has(p.user_id);
+        // Envia push sempre (outros dispositivos / app em background)
+        sendPushToUser(p.user_id, {
+          title: socket.user.display_name || 'WEB MSN',
+          body: preview,
+          conversationId: conversation_id,
+          contactId: userId,
+          url: '/?chat=' + encodeURIComponent(userId),
+          online: !!isOnline
+        }).catch(() => {});
+      }
+
       callback?.({ ok: true, message: fullMessage });
     } catch (err) {
       console.error(err);
@@ -705,6 +788,61 @@ app.get('/server', (req, res) => {
 </body>
 </html>`);
 });
+
+
+// VAPID public key for client subscribe
+app.get('/api/push/vapid-public-key', (req, res) => {
+  if (!VAPID_PUBLIC) {
+    return res.status(503).json({ error: 'Push não configurado no servidor (npm install web-push)' });
+  }
+  res.json({ publicKey: VAPID_PUBLIC });
+});
+
+// Register push subscription (multi-device)
+app.post('/api/push/subscribe', authMiddleware, (req, res) => {
+  const { endpoint, keys, userAgent } = req.body || {};
+  if (!endpoint || !keys || !keys.p256dh || !keys.auth) {
+    return res.status(400).json({ error: 'Subscription inválida' });
+  }
+  db.push_subscriptions = db.push_subscriptions || [];
+  // upsert by endpoint
+  const existing = db.push_subscriptions.findIndex((s) => s.endpoint === endpoint);
+  const row = {
+    id: existing >= 0 ? db.push_subscriptions[existing].id : uuidv4(),
+    user_id: req.user.id,
+    endpoint,
+    keys: { p256dh: keys.p256dh, auth: keys.auth },
+    userAgent: userAgent || '',
+    created_at: existing >= 0 ? db.push_subscriptions[existing].created_at : new Date().toISOString(),
+    updated_at: new Date().toISOString()
+  };
+  if (existing >= 0) db.push_subscriptions[existing] = row;
+  else db.push_subscriptions.push(row);
+  persist();
+  res.json({ ok: true, devices: db.push_subscriptions.filter((s) => s.user_id === req.user.id).length });
+});
+
+app.delete('/api/push/subscribe', authMiddleware, (req, res) => {
+  const { endpoint } = req.body || {};
+  if (!endpoint) return res.status(400).json({ error: 'endpoint necessário' });
+  db.push_subscriptions = (db.push_subscriptions || []).filter(
+    (s) => !(s.user_id === req.user.id && s.endpoint === endpoint)
+  );
+  persist();
+  res.json({ ok: true });
+});
+
+app.get('/api/push/devices', authMiddleware, (req, res) => {
+  const devices = (db.push_subscriptions || [])
+    .filter((s) => s.user_id === req.user.id)
+    .map((s) => ({
+      endpoint_hint: s.endpoint.slice(-24),
+      userAgent: s.userAgent,
+      updated_at: s.updated_at
+    }));
+  res.json({ devices });
+});
+
 
 app.get('/api', (req, res) => {
   res.json({

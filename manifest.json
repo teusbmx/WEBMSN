@@ -1,0 +1,35 @@
+{
+  "name": "WEB MSN",
+  "short_name": "WEB MSN",
+  "description": "Mensageiro nostálgico estilo MSN — chat em tempo real",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0B1220",
+  "theme_color": "#0B1220",
+  "lang": "pt-BR",
+  "categories": ["social", "communication"],
+  "icons": [
+    {
+      "src": "/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Abrir conversas",
+      "short_name": "Chat",
+      "url": "/?source=shortcut",
+      "description": "Abrir lista de contatos"
+    }
+  ]
+}

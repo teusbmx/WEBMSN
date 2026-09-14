@@ -10,6 +10,9 @@
   window.__WEB_MSN_API__ = fromConfig || (isLocal ? window.location.origin : 'https://webmsn.onrender.com');
 })();
 const API = window.__WEB_MSN_API__;
+window.API = API;
+window.__WEB_MSN_API__ = API;
+
 
 let token = localStorage.getItem('msn_token');
 let user = JSON.parse(localStorage.getItem('msn_user') || 'null');
@@ -23,6 +26,10 @@ let typingTimeout = null;
 let lastNudgeAt = 0;
 const NUDGE_COOLDOWN_MS = 8000; // anti-spam CHAMAR ATENÇÃO
 let soundEnabled = localStorage.getItem('msn_sound') !== '0';
+let unreadByConv = JSON.parse(localStorage.getItem('msn_unread') || '{}');
+let deferredInstallPrompt = null;
+let pushSubscribed = false;
+
 let originalTitle = document.title;
 let titleFlashInterval = null;
 let audioCtx = null;
@@ -219,6 +226,8 @@ $('btn-submit').onclick = async () => {
 
     token = data.token;
     user = data.user;
+    window.token = token;
+    window.user = user;
     localStorage.setItem('msn_token', token);
     localStorage.setItem('msn_user', JSON.stringify(user));
 
@@ -260,6 +269,22 @@ function showApp() {
   $('login-screen').classList.add('hidden');
   $('app-screen').classList.remove('hidden');
   updateMeUI();
+  window.token = token;
+  window.user = user;
+  if (window.WebMsnPWA) WebMsnPWA.updateUnreadBadge();
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const chatId = params.get('chat');
+    if (chatId) {
+      setTimeout(() => {
+        loadContacts().then(() => {
+          window.contacts = contacts;
+          const c = contacts.find((x) => x.id === chatId);
+          if (c) openChat(c);
+        });
+      }, 400);
+    }
+  } catch (_) {}
 }
 function updateMeUI() {
   $('me-name').textContent = user.display_name || 'Eu';
@@ -285,6 +310,12 @@ function connectSocket() {
     console.log('Socket connected');
     const bar = $('conn-bar');
     if (bar) bar.classList.add('hidden');
+    window.token = token;
+    window.contacts = contacts;
+    window.openChat = openChat;
+    window.loadContacts = loadContacts;
+    window.showToast = showToast;
+    if (window.WebMsnPWA) WebMsnPWA.ensurePushSubscription(false);
   });
   socket.on('disconnect', () => {
     console.log('Socket disconnected');
@@ -318,6 +349,7 @@ function connectSocket() {
     }
 
     if (!isMe) {
+      if (window.WebMsnPWA) WebMsnPWA.bumpUnread(msg.conversation_id);
       soundMessage();
       const name = msg.sender_name || 'Alguém';
       showToast(name, msg.type === 'nudge' ? '⚡ chamou sua atenção!' : msg.content, () => {
@@ -553,6 +585,7 @@ async function openChat(contact) {
   messages[currentConvId] = await msgRes.json();
   renderMessages();
   $('msg-input').focus();
+  if (window.WebMsnPWA) WebMsnPWA.clearUnread(currentConvId);
 }
 
 function renderMessages() {
