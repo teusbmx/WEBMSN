@@ -38,6 +38,7 @@ function loadDb() {
       db.participants = db.participants || [];
       db.messages = db.messages || [];
       db.push_subscriptions = db.push_subscriptions || [];
+      try { repairFriendRequests(); } catch (e) { console.warn(e); }
       console.log(`[DB] Loaded ${db.users.length} users, ${db.messages.length} messages, ${db.push_subscriptions.length} push subs`);
     }
   } catch (e) {
@@ -345,6 +346,7 @@ app.get('/api/users/search', authMiddleware, (req, res) => {
 });
 
 app.get('/api/contacts', authMiddleware, (req, res) => {
+  try { repairFriendRequests(); } catch (e) { console.warn('[repair]', e.message); }
   const myContacts = db.contacts.filter(c => c.user_id === req.user.id && c.status !== 'blocked' && c.status !== 'rejected');
 
   const result = myContacts.map(c => {
@@ -370,58 +372,178 @@ app.get('/api/contacts', authMiddleware, (req, res) => {
   res.json(result);
 });
 
-app.post('/api/contacts', authMiddleware, (req, res) => {
-  const { contact_id, email } = req.body;
-  let targetId = contact_id;
+// Garante par pending (quem enviou) + incoming (quem recebe)
+function ensureFriendRequestPair(fromUserId, toUserId) {
+  let outgoing = db.contacts.find(
+    c => c.user_id === fromUserId && c.contact_id === toUserId && (c.status === 'pending' || c.status === 'accepted')
+  );
+  let incoming = db.contacts.find(
+    c => c.user_id === toUserId && c.contact_id === fromUserId && (c.status === 'incoming' || c.status === 'accepted')
+  );
 
-  if (!targetId && email) {
-    const u = db.users.find(user => user.email === email.toLowerCase().trim());
-    if (!u) return res.status(404).json({ error: 'Usuário não encontrado' });
-    targetId = u.id;
+  // Remove lixo rejected entre os dois
+  db.contacts = db.contacts.filter(c => {
+    const pair =
+      (c.user_id === fromUserId && c.contact_id === toUserId) ||
+      (c.user_id === toUserId && c.contact_id === fromUserId);
+    if (!pair) return true;
+    if (c.status === 'rejected') return false;
+    return true;
+  });
+
+  outgoing = db.contacts.find(c => c.user_id === fromUserId && c.contact_id === toUserId);
+  incoming = db.contacts.find(c => c.user_id === toUserId && c.contact_id === fromUserId);
+
+  if (outgoing && outgoing.status === 'accepted' && incoming && incoming.status === 'accepted') {
+    return { alreadyFriends: true };
+  }
+  if (outgoing && outgoing.status === 'blocked') {
+    return { blocked: true };
   }
 
-  if (!targetId) return res.status(400).json({ error: 'contact_id ou email necessário' });
-  if (targetId === req.user.id) return res.status(400).json({ error: 'Não pode adicionar a si mesmo' });
-
-  const existing = db.contacts.find(c => c.user_id === req.user.id && c.contact_id === targetId);
-  if (existing) {
-    if (existing.status === 'blocked') return res.status(400).json({ error: 'Contato bloqueado' });
-    return res.status(409).json({ error: 'Já existe relação com este contato' });
+  // Se o OUTRO já me enviou pedido, eu devo ver em Solicitações (incoming no meu lado)
+  if (incoming && incoming.status === 'pending') {
+    // Dados invertidos de versão antiga: corrige
+    incoming.status = 'incoming';
+  }
+  if (outgoing && outgoing.status === 'incoming') {
+    // Eu tinha "incoming" errado como quem envia — vira pending
+    outgoing.status = 'pending';
   }
 
-  const id = uuidv4();
-  const incomingId = uuidv4();
-  // Solicitação de quem enviou
-  db.contacts.push({
-    id,
-    user_id: req.user.id,
-    contact_id: targetId,
-    status: 'pending',
-    nickname: null,
-    created_at: new Date().toISOString()
-  });
-  // Pedido aparece para o outro usuário aceitar/recusar
-  db.contacts.push({
-    id: incomingId,
-    user_id: targetId,
-    contact_id: req.user.id,
-    status: 'incoming',
-    nickname: null,
-    created_at: new Date().toISOString()
-  });
+  if (!outgoing) {
+    outgoing = {
+      id: uuidv4(),
+      user_id: fromUserId,
+      contact_id: toUserId,
+      status: 'pending',
+      nickname: null,
+      created_at: new Date().toISOString()
+    };
+    db.contacts.push(outgoing);
+  } else if (outgoing.status !== 'accepted') {
+    outgoing.status = 'pending';
+  }
+
+  if (!incoming) {
+    incoming = {
+      id: uuidv4(),
+      user_id: toUserId,
+      contact_id: fromUserId,
+      status: 'incoming',
+      nickname: null,
+      created_at: new Date().toISOString()
+    };
+    db.contacts.push(incoming);
+  } else if (incoming.status !== 'accepted') {
+    incoming.status = 'incoming';
+  }
+
   persist();
+  return { outgoing, incoming, alreadyFriends: false };
+}
 
-  const fromUser = db.users.find(u => u.id === req.user.id);
-  const targetSocket = onlineUsers.get(targetId);
-  if (targetSocket) {
-    io.to(targetSocket.socketId).emit('contact:request', {
-      from: req.user.id,
-      display_name: fromUser ? fromUser.display_name : req.user.display_name,
-      relation_id: incomingId
-    });
+/** Repara pedidos antigos só com pending de um lado */
+function repairFriendRequests() {
+  let changed = false;
+  const pendings = db.contacts.filter(c => c.status === 'pending');
+  for (const p of pendings) {
+    let other = db.contacts.find(c => c.user_id === p.contact_id && c.contact_id === p.user_id);
+    if (!other) {
+      db.contacts.push({
+        id: uuidv4(),
+        user_id: p.contact_id,
+        contact_id: p.user_id,
+        status: 'incoming',
+        nickname: null,
+        created_at: p.created_at || new Date().toISOString()
+      });
+      changed = true;
+    } else if (other.status === 'pending') {
+      // Dois pendings espelhados: o "recebedor" deve ser incoming
+      // Mantém quem tem created_at mais antigo como pending (remetente)
+      other.status = 'incoming';
+      changed = true;
+    } else if (other.status !== 'incoming' && other.status !== 'accepted' && other.status !== 'blocked') {
+      other.status = 'incoming';
+      changed = true;
+    }
   }
+  if (changed) persist();
+}
 
-  res.status(201).json({ id, status: 'pending' });
+app.post('/api/contacts', authMiddleware, (req, res) => {
+  try {
+    const { contact_id, email } = req.body || {};
+    let targetId = contact_id;
+
+    if (!targetId && email) {
+      const emailNorm = String(email).toLowerCase().trim();
+      const u = db.users.find(user => (user.email || '').toLowerCase().trim() === emailNorm);
+      if (!u) {
+        return res.status(404).json({
+          error: 'Usuário não encontrado. A pessoa precisa se cadastrar no WEB MSN primeiro.'
+        });
+      }
+      targetId = u.id;
+    }
+
+    if (!targetId) return res.status(400).json({ error: 'Informe o email do contato' });
+    if (targetId === req.user.id) return res.status(400).json({ error: 'Não pode adicionar a si mesmo' });
+
+    // Já existe pedido DELES para mim?
+    const theyAsked = db.contacts.find(
+      c => c.user_id === req.user.id && c.contact_id === targetId && c.status === 'incoming'
+    );
+    if (theyAsked) {
+      return res.status(409).json({
+        error: 'Esta pessoa já te enviou um pedido. Abra a seção Solicitações e aceite.'
+      });
+    }
+
+    const result = ensureFriendRequestPair(req.user.id, targetId);
+    if (result.alreadyFriends) {
+      return res.status(409).json({ error: 'Vocês já são contatos' });
+    }
+    if (result.blocked) {
+      return res.status(400).json({ error: 'Contato bloqueado' });
+    }
+
+    const fromUser = db.users.find(u => u.id === req.user.id);
+    const displayName = fromUser ? fromUser.display_name : (req.user.display_name || 'Alguém');
+    const payload = {
+      from: req.user.id,
+      display_name: displayName,
+      relation_id: result.incoming.id
+    };
+
+    io.to(`user:${targetId}`).emit('contact:request', payload);
+    const targetSocket = onlineUsers.get(targetId);
+    if (targetSocket && targetSocket.socketId) {
+      io.to(targetSocket.socketId).emit('contact:request', payload);
+    }
+    // Também pede refresh da lista
+    io.to(`user:${targetId}`).emit('contact:updated', {});
+    io.to(`user:${req.user.id}`).emit('contact:updated', {});
+
+    if (typeof sendPushToUser === 'function') {
+      sendPushToUser(targetId, {
+        title: 'Solicitação de amizade',
+        body: displayName + ' quer adicionar você',
+        contactId: req.user.id,
+        url: '/?source=friend_request'
+      }).catch(() => {});
+    }
+
+    res.status(201).json({
+      id: result.outgoing.id,
+      status: 'pending',
+      message: 'Convite enviado! A pessoa verá em Solicitações.'
+    });
+  } catch (err) {
+    console.error('[contacts POST]', err);
+    res.status(500).json({ error: 'Erro ao enviar convite' });
+  }
 });
 
 app.patch('/api/contacts/:relationId', authMiddleware, (req, res) => {
@@ -442,7 +564,10 @@ app.patch('/api/contacts/:relationId', authMiddleware, (req, res) => {
     );
     persist();
     const other = onlineUsers.get(rel.contact_id);
-    if (other) io.to(other.socketId).emit('contact:updated', {});
+    if (other) {
+      io.to(`user:${rel.contact_id}`).emit('contact:updated', {});
+      io.to(other.socketId).emit('contact:updated', {});
+    }
     return res.json({ ok: true, status: 'rejected' });
   }
 
@@ -469,7 +594,10 @@ app.patch('/api/contacts/:relationId', authMiddleware, (req, res) => {
     });
     ensureDirectConversation(req.user.id, rel.contact_id);
     const other = onlineUsers.get(rel.contact_id);
-    if (other) io.to(other.socketId).emit('contact:updated', {});
+    if (other) {
+      io.to(`user:${rel.contact_id}`).emit('contact:updated', {});
+      io.to(other.socketId).emit('contact:updated', {});
+    }
   }
 
   persist();

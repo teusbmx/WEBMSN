@@ -399,17 +399,30 @@ function connectSocket() {
     showToast('Solicitação de amizade', name + ' quer adicionar você');
     loadContacts();
   });
-  socket.on('contact:updated', () => loadContacts());
+  socket.on('contact:updated', () => {
+    loadContacts();
+  });
 }
+
+// Atualiza lista periodicamente (convites offline / multi-aba)
+setInterval(() => {
+  if (token && !$('app-screen').classList.contains('hidden')) {
+    loadContacts();
+  }
+}, 15000);
+
 
 // ========== CONTACTS ==========
 async function loadContacts() {
   try {
+    if (!token) return;
     const res = await fetch(`${API}/api/contacts`, {
       headers: { Authorization: `Bearer ${token}` }
     });
     if (res.status === 401) return logout();
-    contacts = await res.json();
+    const data = await res.json();
+    contacts = Array.isArray(data) ? data : [];
+    window.contacts = contacts;
     renderContacts();
   } catch (e) { console.error(e); }
 }
@@ -711,15 +724,28 @@ $('btn-cancel-psm').onclick = closeModals;
 $('btn-add-contact').onclick = () => openModal('modal-add');
 $('btn-confirm-add').onclick = async () => {
   const email = $('add-email').value.trim();
-  if (!email) return;
-  const res = await fetch(`${API}/api/contacts`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ email })
-  });
-  const data = await res.json();
-  if (!res.ok) alert(data.error || 'Erro');
-  else { closeModals(); loadContacts(); }
+  if (!email) {
+    showToast('Contato', 'Digite o email da pessoa');
+    return;
+  }
+  try {
+    const res = await fetch(`${API}/api/contacts`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ email })
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      showToast('Convite', data.error || 'Não foi possível enviar');
+      return;
+    }
+    closeModals();
+    $('add-email').value = '';
+    showToast('Convite enviado', data.message || 'A pessoa verá em Solicitações');
+    loadContacts();
+  } catch (e) {
+    showToast('Erro', 'Falha de conexão ao enviar convite');
+  }
 };
 $('btn-cancel-add').onclick = closeModals;
 
