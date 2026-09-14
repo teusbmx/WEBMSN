@@ -1,0 +1,87 @@
+{
+  "users": [
+    {
+      "id": "e9abe9eb-0686-4f92-91d5-93d3f085b01d",
+      "email": "mateuscdm2@gmail.com",
+      "password_hash": "$2a$10$eGOl4nbCWoFj0swWGYVRqutPcNZRXCPTJCbLYOtr0wdJ.AY/2mD8O",
+      "display_name": "XILITOZK",
+      "personal_message": "É O ZK VIDA",
+      "avatar_url": "",
+      "status": "offline",
+      "last_seen": "2026-09-14T03:13:36.677Z",
+      "created_at": "2026-09-14T03:03:57.037Z"
+    },
+    {
+      "id": "60205cb9-1129-4cbe-85f0-bda5298b29b3",
+      "email": "mateuscdm3@gmail.com",
+      "password_hash": "$2a$10$13zMnKGeZxGvEXoSGo3cRuPamybhwoLN9XON9GPXnjJt.kff5ANLK",
+      "display_name": "ZKDELAS",
+      "personal_message": "ZK DO ODIO",
+      "avatar_url": "",
+      "status": "away",
+      "last_seen": "2026-09-14T03:30:42.158Z",
+      "created_at": "2026-09-14T03:05:15.850Z"
+    }
+  ],
+  "contacts": [
+    {
+      "id": "2b88ac9d-02bd-438d-8b0b-1930727f43b6",
+      "user_id": "60205cb9-1129-4cbe-85f0-bda5298b29b3",
+      "contact_id": "e9abe9eb-0686-4f92-91d5-93d3f085b01d",
+      "status": "accepted",
+      "nickname": null,
+      "created_at": "2026-09-14T03:05:23.657Z"
+    },
+    {
+      "id": "644d2fe7-7342-4d45-8e14-1c3ca24b82bf",
+      "user_id": "e9abe9eb-0686-4f92-91d5-93d3f085b01d",
+      "contact_id": "60205cb9-1129-4cbe-85f0-bda5298b29b3",
+      "status": "accepted",
+      "nickname": null,
+      "created_at": "2026-09-14T03:05:37.127Z"
+    }
+  ],
+  "conversations": [
+    {
+      "id": "e4c34d8e-35c2-4498-91fc-04b40ab3c72b",
+      "type": "direct",
+      "created_at": "2026-09-14T03:05:37.127Z"
+    }
+  ],
+  "participants": [
+    {
+      "conversation_id": "e4c34d8e-35c2-4498-91fc-04b40ab3c72b",
+      "user_id": "60205cb9-1129-4cbe-85f0-bda5298b29b3"
+    },
+    {
+      "conversation_id": "e4c34d8e-35c2-4498-91fc-04b40ab3c72b",
+      "user_id": "e9abe9eb-0686-4f92-91d5-93d3f085b01d"
+    }
+  ],
+  "messages": [
+    {
+      "id": "18442270-4b26-4d14-a5a7-9258fc3f26b4",
+      "conversation_id": "e4c34d8e-35c2-4498-91fc-04b40ab3c72b",
+      "sender_id": "e9abe9eb-0686-4f92-91d5-93d3f085b01d",
+      "content": "EAI CHEFE",
+      "type": "text",
+      "created_at": "2026-09-14T03:05:58.086Z"
+    },
+    {
+      "id": "0f163eef-8a25-46b7-b216-10c66e656ff8",
+      "conversation_id": "e4c34d8e-35c2-4498-91fc-04b40ab3c72b",
+      "sender_id": "60205cb9-1129-4cbe-85f0-bda5298b29b3",
+      "content": "😂",
+      "type": "text",
+      "created_at": "2026-09-14T03:06:19.479Z"
+    },
+    {
+      "id": "75602c9d-4248-4eb7-b915-fe498cd9b823",
+      "conversation_id": "e4c34d8e-35c2-4498-91fc-04b40ab3c72b",
+      "sender_id": "e9abe9eb-0686-4f92-91d5-93d3f085b01d",
+      "content": "DA O TEU PAPO",
+      "type": "text",
+      "created_at": "2026-09-14T03:12:45.725Z"
+    }
+  ]
+}

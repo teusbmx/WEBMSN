@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MSN Classic Messenger</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://cdn.socket.io/4.8.1/socket.io.min.js"></script>
+</head>
+<body>
+  <!-- LOGIN -->
+  <div id="login-screen" class="screen">
+    <div class="login-card">
+      <div class="login-logo">💬</div>
+      <h1>MSN Classic</h1>
+      <p class="login-sub">Messenger 2005/2006</p>
+
+      <div id="login-error" class="error hidden"></div>
+
+      <div id="register-fields" class="hidden">
+        <input type="text" id="reg-name" placeholder="Nome de exibição" autocomplete="name">
+      </div>
+      <input type="email" id="email" placeholder="E-mail" autocomplete="email">
+      <input type="password" id="password" placeholder="Senha" autocomplete="current-password">
+
+      <button id="btn-submit" class="btn-primary">Entrar</button>
+      <button id="btn-toggle" class="btn-link">Não tem conta? Criar agora</button>
+    </div>
+  </div>
+
+  <!-- MAIN APP -->
+  <div id="app-screen" class="screen hidden">
+    <div class="app-layout">
+      <!-- SIDEBAR - Contact List -->
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <div class="me-info">
+            <div class="avatar me-avatar" id="me-avatar">?</div>
+            <div class="me-text">
+              <div class="me-name" id="me-name">Eu</div>
+              <div class="me-status" id="me-status-line">
+                <span class="status-dot" id="me-dot"></span>
+                <span id="me-status-label">Online</span>
+                <span class="chevron">▼</span>
+              </div>
+              <div class="me-psm" id="me-psm" title="Clique para editar">Toque para mensagem pessoal</div>
+            </div>
+          </div>
+          <div class="header-actions">
+            <button class="icon-btn" id="btn-add-contact" title="Adicionar contato">＋</button>
+            <button class="icon-btn" id="btn-logout" title="Sair">⏻</button>
+          </div>
+        </div>
+
+        <div class="search-box">
+          <input type="text" id="search" placeholder="Buscar contatos...">
+        </div>
+
+        <div class="contact-list" id="contact-list">
+          <!-- filled by JS -->
+        </div>
+      </aside>
+
+      <!-- CHAT AREA -->
+      <main class="chat-area" id="chat-area">
+        <div id="empty-chat" class="empty-chat">
+          <div class="empty-icon">💬</div>
+          <p>Selecione um contato para começar a conversar</p>
+          <p class="empty-hint">Inspirado no MSN Messenger clássico</p>
+        </div>
+
+        <div id="active-chat" class="active-chat hidden">
+          <div class="chat-header">
+            <div class="chat-contact">
+              <div class="avatar" id="chat-avatar">?</div>
+              <div>
+                <div class="chat-name" id="chat-name">Contato</div>
+                <div class="chat-status" id="chat-status">Offline</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="messages" id="messages"></div>
+
+          <div class="typing-bar hidden" id="typing-bar">está digitando...</div>
+
+          <div class="composer">
+            <button class="icon-btn" id="btn-emoji" title="Emoticons">☺</button>
+            <input type="text" id="msg-input" placeholder="Digite uma mensagem..." autocomplete="off">
+            <button class="btn-send" id="btn-send">Enviar</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- MODALS -->
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal" id="modal-add">
+      <h3>Adicionar contato</h3>
+      <input type="email" id="add-email" placeholder="E-mail do contato">
+      <div class="modal-actions">
+        <button class="btn-link" id="btn-cancel-add">Cancelar</button>
+        <button class="btn-primary" id="btn-confirm-add">Adicionar</button>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="modal-status">
+      <h3>Meu status</h3>
+      <div class="status-options">
+        <button data-status="online"><span class="status-dot online"></span> Online</button>
+        <button data-status="busy"><span class="status-dot busy"></span> Ocupado</button>
+        <button data-status="away"><span class="status-dot away"></span> Ausente</button>
+        <button data-status="invisible"><span class="status-dot offline"></span> Invisível</button>
+        <button data-status="offline"><span class="status-dot offline"></span> Offline</button>
+      </div>
+      <button class="btn-link" id="btn-cancel-status">Fechar</button>
+    </div>
+
+    <div class="modal hidden" id="modal-psm">
+      <h3>Mensagem pessoal</h3>
+      <input type="text" id="psm-input" maxlength="128" placeholder="O que você está fazendo?">
+      <div class="modal-actions">
+        <button class="btn-link" id="btn-cancel-psm">Cancelar</button>
+        <button class="btn-primary" id="btn-save-psm">Salvar</button>
+      </div>
+    </div>
+
+    <div class="modal hidden" id="modal-emoji">
+      <h3>Emoticons</h3>
+      <div class="emoji-grid" id="emoji-grid"></div>
+      <button class="btn-link" id="btn-close-emoji">Fechar</button>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
